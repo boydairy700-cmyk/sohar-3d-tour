@@ -1,0 +1,17 @@
+node_modules/
+*.log
+.DS_Store
+
+# أصول خام ثقيلة (غير مطلوبة للنشر — مدمجة داخل index.html)
+assets/trees/
+assets/trees_small/
+assets/topt/
+assets/dl/
+
+# ملفات اختبار ضخمة تحتوي base64
+_test.html
+_probe.html
+_gltest.html
+_ttest.html
+_ctest.html
+_lite.html
