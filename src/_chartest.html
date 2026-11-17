@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>شخصيات — اختبار</title>
+<style>
+ html,body{margin:0;height:100%;background:#0d1117;overflow:hidden}
+ canvas{display:block}
+ #ui{position:fixed;left:8px;top:8px;z-index:5;color:#9fe;font:13px monospace;background:rgba(0,0,0,.55);padding:8px;border-radius:6px}
+ #ui button{background:#1f2937;color:#9fe;border:1px solid #334155;border-radius:4px;padding:3px 8px;margin:2px;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="ui">
+  <div id="log">…</div>
+  <button onclick="setSpeed(0)">وقوف</button>
+  <button onclick="setSpeed(1.5)">مشي</button>
+  <button onclick="setSpeed(4.5)">جري</button>
+  <button onclick="setView('front')">أمام</button>
+  <button onclick="setView('side')">جانب</button>
+  <button onclick="setView('back')">خلف</button>
+  <button onclick="setView('close')">قريب</button>
+  <button onclick="setView('head')">رأس الذكر</button>
+  <button onclick="setView('headf')">رأس الأنثى</button>
+</div>
+<script src="/_lib_three.js"></script>
+<script src="/_lib_gltf.js"></script>
+<script>window.RB_URL_OVERRIDE={m:'/assets/pack/rb_male_c.glb',f:'/assets/pack/rb_female_c.glb',a:'/dl_rb_anims.glb'};</script>
+<script src="/_char3.js"></script>
+<script>
+const L=document.getElementById('log');
+const say=t=>{L.textContent=t;};
+window.onerror=(m,s,l)=>say('ERR '+m+' @'+l);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x141a22);
+const cam=new THREE.PerspectiveCamera(35,innerWidth/innerHeight,.05,500);
+scene.add(new THREE.AmbientLight(0xffffff,.45));
+const sun=new THREE.DirectionalLight(0xfff3e0,1.35);sun.position.set(4,8,5);sun.castShadow=true;
+sun.shadow.mapSize.set(1024,1024);scene.add(sun);
+const fl=new THREE.DirectionalLight(0x88aaff,.35);fl.position.set(-5,3,-4);scene.add(fl);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(60,60),new THREE.MeshStandardMaterial({color:0x2a3a2a,roughness:.95}));
+ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+
+let rigs=[],speed=0,view='front';
+(async function(){
+  say('تحميل…');
+  await charPreload();
+  say('النماذج جاهزة — بناء الشخصيات…');
+  const m=await buildOmani('m'); m.root.position.set(-.65,0,0); scene.add(m.root);
+  const f=await buildOmani('f'); f.root.position.set(.65,0,0); scene.add(f.root);
+  rigs=[m,f];
+  say('تم');
+  window.__hm=function(){
+    const out=[];
+    for(const r of rigs){
+      const hm=rbHeadMetrics(r.root);
+      out.push(r.kind+' bone='+(hm.bone?hm.bone.name:'NONE')+' n='+hm.n+' mesh='+hm.meshName
+        +' topY='+hm.topY.toFixed(1)+' botY='+hm.botY.toFixed(1)+' headH='+hm.headH.toFixed(1)
+        +' cx='+hm.cx.toFixed(1)+' cz='+hm.cz.toFixed(1)+' rx='+hm.rx.toFixed(1)+' rz='+hm.rz.toFixed(1));
+    }
+    const b=r=>{const p=new THREE.Vector3();const bo=r.root.getObjectByName('Bip01_Head');if(bo)bo.getWorldPosition(p);return p.toArray().map(v=>v.toFixed(1)).join(',');};
+    out.push('headBoneWorld m='+b(rigs[0])+' f='+b(rigs[1]));
+    return out.join('\n');
+  };
+  say(window.__hm());
+  window.__ready=true;
+  window.__dbg=function(){
+    const out=[];
+    const r=rigs[0];
+    r.root.updateMatrixWorld(true);
+    out.push('root matrix='+Array.from(r.root.matrix.elements).map(v=>v.toFixed(2)).join(','));
+    ['Bip01_Pelvis','Bip01_Spine','Bip01_Head','Bip01_L_Thigh','Bip01_L_Calf','Bip01_L_Foot','Bip01_L_Toe0'].forEach(n=>{
+      const b=r.root.getObjectByName(n);
+      if(!b){out.push(n+' MISSING');return;}
+      const p=new THREE.Vector3();b.getWorldPosition(p);
+      out.push(n+' world='+[p.x,p.y,p.z].map(v=>v.toFixed(1)).join(',')+' local='+[b.position.x,b.position.y,b.position.z].map(v=>v.toFixed(2)).join(','));
+    });
+    r.root.traverse(o=>{
+      if(o.isSkinnedMesh){
+        const g=o.geometry,pos=g.attributes.position;
+        const sk=o.skeleton, v=new THREE.Vector3(), BM=new THREE.Matrix4();
+        let mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9];
+        const ji=g.attributes.skinIndex, wa=g.attributes.skinWeight;
+        for(let i=0;i<pos.count;i+=7){
+          let best=0,bw=-1;
+          for(let k=0;k<4;k++){const w=wa.array[i*4+k];if(w>bw){bw=w;best=ji.array[i*4+k];}}
+          v.set(pos.getX(i),pos.getY(i),pos.getZ(i));
+          BM.fromArray(sk.boneMatrices,best*16);v.applyMatrix4(BM);
+          for(let k=0;k<3;k++){if(v[k]<mn[k])mn[k]=v[k];if(v[k]>mx[k])mx[k]=v[k];}
+        }
+        out.push('mesh '+o.name+' skinnedBBox min='+mn.map(v=>v.toFixed(1)).join(',')+' max='+mx.map(v=>v.toFixed(1)).join(','));
+      }
+    });
+    return out.join('\n');
+  };
+})().catch(e=>{say('FATAL '+e.message);console.error(e);});
+
+function setSpeed(s){speed=s;}
+function setView(v){view=v;}
+const clock=new THREE.Clock();
+function loop(){
+  requestAnimationFrame(loop);
+  const dt=Math.min(.05,clock.getDelta());
+  rigs.forEach(r=>r.update(dt,speed));
+  const d={front:[0,1.0,4.2],side:[4.2,1.0,0],back:[0,1.0,-4.2],close:[0,1.62,1.25],head:[-0.65,1.62,0.75],headf:[0.65,1.55,0.75]}[view]||[0,1,4];
+  cam.position.set(d[0],d[1],d[2]);cam.lookAt(view==='head'?-0.65:(view==='headf'?0.65:0),view==='head'||view==='headf'?1.58:.95,0);
+  renderer.render(scene,cam);
+}
+loop();
+</script>
+</body>
+</html>
