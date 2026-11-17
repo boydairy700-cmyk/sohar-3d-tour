@@ -1252,8 +1252,11 @@ cv.addEventListener('pointerdown', e => {
 cv.addEventListener('pointermove', e => {
   const p = ptr.get(e.pointerId); if (!p || trans) return;
   const dx = e.clientX - p.x, dy = e.clientY - p.y;
-  if (ptr.size === 2) {
-    const o = Array.prototype.slice.call(ptr.values()), d0 = Math.hypot(o[0].x - o[1].x, o[0].y - o[1].y);
+  if (ptr.size >= 2) {
+    /* Map.values() مُكرِّر وليس مصفوفة — Array.from ضرورية (وإلا o[0] = undefined) */
+    const o = Array.from(ptr.values());
+    if (o.length < 2) { p.x = e.clientX; p.y = e.clientY; return; }
+    const d0 = Math.hypot(o[0].x - o[1].x, o[0].y - o[1].y);
     p.x = e.clientX; p.y = e.clientY;
     const d1 = Math.hypot(o[0].x - o[1].x, o[0].y - o[1].y);
     if (d1 > 0) zoom(d0 / d1);

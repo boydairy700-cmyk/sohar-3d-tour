@@ -129,7 +129,7 @@ html[data-cine="1"] #grade{opacity:0}
 @media(hover:hover){#pad{opacity:.42}}
 
 /* ---------- زر القفز ---------- */
-#jb{position:fixed;inset-inline-end:calc(16px + var(--safeR));bottom:calc(96px + var(--safeB));z-index:12;
+#jb{position:fixed;inset-inline-start:calc(16px + var(--safeL));bottom:calc(164px + var(--safeB));z-index:12;
   width:62px;height:62px;border-radius:50%;display:none;place-items:center;
   background:radial-gradient(circle at 34% 28%,rgba(233,198,122,.95),rgba(201,154,59,.92));
   color:#12222b;font-size:24px;line-height:1;box-shadow:0 8px 26px rgba(0,0,0,.42);
@@ -190,10 +190,10 @@ input[type=text],input[type=time],input[type=number],select{font:inherit;font-si
 .qg figcaption{margin-top:5px}
 
 /* ---------- minimap ---------- */
-#mmwrap{position:fixed;inset-inline-end:calc(10px + var(--safeR));bottom:calc(150px + var(--safeB));z-index:10;
+#mmwrap{position:fixed;inset-inline-end:calc(10px + var(--safeR));top:calc(68px + var(--safeT));bottom:auto;z-index:10;
   border-radius:16px;overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--line);
   background:var(--panel);backdrop-filter:blur(12px);transition:transform .3s}
-#mmwrap.hidden{transform:translateY(140%);opacity:0;pointer-events:none}
+#mmwrap.hidden{transform:translateY(-150%);opacity:0;pointer-events:none}
 #mmwrap canvas{display:block;width:132px;height:140px;cursor:pointer}
 #mmwrap .cap{position:absolute;top:0;inset-inline:0;text-align:center;font-size:10px;padding:3px;background:rgba(6,24,33,.55);color:#EAF3F6}
 
@@ -306,8 +306,10 @@ input[type=text],input[type=time],input[type=number],select{font:inherit;font-si
   .icons{flex:0 0 auto;gap:5px}
   .ib{width:42px;height:42px}
   #mmwrap canvas{width:104px;height:110px}
-  #mmwrap{bottom:calc(132px + var(--safeB))}
-  #toast{bottom:calc(132px + var(--safeB));font-size:12px}
+  #mmwrap{top:calc(62px + var(--safeT));bottom:auto}
+  #jb{bottom:calc(214px + var(--safeB))}
+  #toast{bottom:calc(132px + var(--safeB));font-size:12px;
+    left:calc(148px + var(--safeL));right:calc(10px + var(--safeR));transform:none;max-width:none}
   #hint{display:none}
   #cine{bottom:calc(126px + var(--safeB));padding:11px 13px}
   #cine b{font-size:13.5px}
@@ -319,7 +321,7 @@ input[type=text],input[type=time],input[type=number],select{font:inherit;font-si
 @media(max-height:460px) and (orientation:landscape){
   #dock{padding-bottom:calc(4px + var(--safeB))}
   #dock button i{font-size:16px}
-  #mmwrap{bottom:calc(74px + var(--safeB))}
+  #mmwrap{top:calc(56px + var(--safeT));bottom:auto}
 }
 </style>
 </head>
@@ -9164,8 +9166,11 @@ cv.addEventListener('pointerdown', e => {
 cv.addEventListener('pointermove', e => {
   const p = ptr.get(e.pointerId); if (!p || trans) return;
   const dx = e.clientX - p.x, dy = e.clientY - p.y;
-  if (ptr.size === 2) {
-    const o = Array.prototype.slice.call(ptr.values()), d0 = Math.hypot(o[0].x - o[1].x, o[0].y - o[1].y);
+  if (ptr.size >= 2) {
+    /* Map.values() مُكرِّر وليس مصفوفة — Array.from ضرورية (وإلا o[0] = undefined) */
+    const o = Array.from(ptr.values());
+    if (o.length < 2) { p.x = e.clientX; p.y = e.clientY; return; }
+    const d0 = Math.hypot(o[0].x - o[1].x, o[0].y - o[1].y);
     p.x = e.clientX; p.y = e.clientY;
     const d1 = Math.hypot(o[0].x - o[1].x, o[0].y - o[1].y);
     if (d1 > 0) zoom(d0 / d1);
